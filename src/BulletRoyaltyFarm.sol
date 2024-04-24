@@ -63,7 +63,7 @@ contract BulletRoyaltyFarm is Ownable, ReentrancyGuard {
     mapping(address => Stake) internal userStake;
 
     /// @notice Wrapped AVAX contract
-    IWAVAX public WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWAVAX public WAVAX;
 
     /// @notice The LP tokens that will be staked in the farm
     IERC20 public immutable LP;
@@ -73,9 +73,10 @@ contract BulletRoyaltyFarm is Ownable, ReentrancyGuard {
     event AvaxDistributed(uint amount);
     event RewardsClaimed(address staked, uint rewards);
     
-    constructor(address _fallbackAddress, address _lpAddress, uint _unit, uint _cooldown) Ownable(msg.sender) {
+    constructor(address _fallbackAddress, address _lpAddress, address _wavax, uint _unit, uint _cooldown) Ownable(msg.sender) {
         fallbackAddress = _fallbackAddress;
         LP = IERC20(_lpAddress);
+        WAVAX = IWAVAX(_wavax);
         unit = _unit;
         cooldown = _cooldown;
     }
@@ -83,7 +84,7 @@ contract BulletRoyaltyFarm is Ownable, ReentrancyGuard {
     /// @dev Upon receipt of AVAX, calculate rewards per staked unit and update rewardIndex. If 
     /// deposit amount is less than stakedUnits, send to fallbackAddress instead
     receive() external payable {
-        if (msg.value < stakedUnits) {
+        if (msg.value < stakedUnits || stakedUnits == 0) {
             (bool success,) = payable(fallbackAddress).call{ value: msg.value }("");
             if (!success) revert TransferFailed();
         } else {
@@ -153,7 +154,7 @@ contract BulletRoyaltyFarm is Ownable, ReentrancyGuard {
     /// @dev Reward distribution should happen in the receive function once AVAX is unwrapped
     function unwrapAVAX() external {
         uint balance = WAVAX.balanceOf(address(this));
-        if (balance < stakedUnits) revert InvalidAmount();
+        if (balance < stakedUnits || stakedUnits == 0) revert InvalidAmount();
 
         // Unwrap WAVAX
         WAVAX.withdraw(balance);
@@ -179,7 +180,10 @@ contract BulletRoyaltyFarm is Ownable, ReentrancyGuard {
     /// @notice View function to get claimable amount for user
     function claimableForUser(address user) public view returns(uint) {
         Stake memory s = userStake[user];
-        if (s.units == 0 || s.rewardIndex == farmRewardIndex) {
+        if (s.units == 0 || 
+            s.rewardIndex == farmRewardIndex ||
+            block.timestamp < s.lastStake + cooldown
+            ) {
             return 0;
         }
 

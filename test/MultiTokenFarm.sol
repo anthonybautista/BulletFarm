@@ -207,6 +207,10 @@ contract MultiTokenFarmTest is Test {
         vm.prank(address(3));
         farm.unstake();
 
+        // check user token balances
+        assertEq(wavax.balanceOf(address(3)), .1 ether);
+        assertEq(lucky.balanceOf(address(3)), 1 ether);
+
         stakedUnits = farm.stakedUnits();
         assertEq(stakedUnits, 18);
 

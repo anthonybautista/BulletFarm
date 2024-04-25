@@ -3,13 +3,12 @@ pragma solidity ^0.8.13;
 
 import {Test, console} from "../lib/forge-std/src/Test.sol";
 import {BulletRoyaltyFarm} from "../src/BulletRoyaltyFarm.sol";
-import {MockERC20} from "../src/MockERC20.sol";
-import {WAVAX} from "../src/WAVAX.sol";
+import {MockERC20} from "../src/utils/MockERC20.sol";
+import {WAVAX} from "../src/utils/WAVAX.sol";
 
 contract RoyaltyFarmTest is Test {
     BulletRoyaltyFarm public farm;
     WAVAX public wavax;
-    MockERC20 public reward;
     MockERC20 public kingshit_lp;
     address public constant FALLBACK_ADDY = 0xe2a1C02000378B1B064919f688f2697Eb283D6c0;
     uint public units = 10**15; // .001
@@ -256,6 +255,10 @@ contract RoyaltyFarmTest is Test {
         vm.expectRevert(BulletRoyaltyFarm.NothingToClaim.selector);
         vm.prank(address(1));
         farm.claim();
+
+        // owner cannot withdraw LP tokens
+        vm.expectRevert(BulletRoyaltyFarm.InvalidToken.selector);
+        farm.withdrawERC20(address(kingshit_lp));
 
     }
 

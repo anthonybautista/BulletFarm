@@ -362,6 +362,14 @@ contract MultiTokenFarmTest is Test {
         vm.expectRevert(BulletMultiTokenFarm.InvalidAmount.selector);
         farm.addReward(address(wavax), 1 ether);
 
+        // public also cannot add rewards while no units staked
+        wavax.transfer(address(1), 1 ether);
+        vm.startPrank(address(1));
+        wavax.approve(address(farm), 1 ether);
+        vm.expectRevert(BulletMultiTokenFarm.InvalidAmount.selector);
+        farm.addRewardPublic(address(wavax), 1 ether);(1);
+        vm.stopPrank();
+
         // cannot deposit while paused
         farm.togglePaused();
         vm.prank(address(1));
@@ -382,20 +390,28 @@ contract MultiTokenFarmTest is Test {
         farm.unstake();
 
         // unstake fails due to cooldown
-        vm.prank(address(1));
-        farm.stake(1);
+        vm.startPrank(address(2));
+        kingshit_lp.approve(address(farm), .002 ether);
+        farm.stake(2);
         vm.expectRevert(BulletMultiTokenFarm.CoolingDown.selector);
-        vm.prank(address(1));
         farm.unstake();
+        vm.stopPrank();        
 
         // cannot claim 0
         vm.expectRevert(BulletMultiTokenFarm.NothingToClaim.selector);
-        vm.prank(address(1));
+        vm.prank(address(2));
         farm.claim();
 
         // owner cannot withdraw LP tokens
         vm.expectRevert(BulletMultiTokenFarm.InvalidToken.selector);
         farm.withdrawERC20(address(kingshit_lp));
+
+        // cannot deposit less than units staked
+        uint stakedUnits = farm.stakedUnits();
+        assertEq(stakedUnits, 2);
+        wavax.approve(address(farm), 1);
+        vm.expectRevert(BulletMultiTokenFarm.InvalidAmount.selector);
+        farm.addReward(address(wavax), 1);
 
     }
 
